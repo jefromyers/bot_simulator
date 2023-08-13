@@ -1,0 +1,17 @@
+{
+  "device_id": "Blue",
+  "timestamp": "1657453020000",
+  "color": "blue",
+  "x": 19.0,
+  "y": 15.0,
+  "theta": 1.57,
+  "battery_level": 87.2,
+  "loaded": false,
+  "path": [
+    {
+      "x": 15.0,
+      "y": 15.0,
+      "theta": 1.57
+    }
+  ]
+}

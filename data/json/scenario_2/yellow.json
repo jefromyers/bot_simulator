@@ -1,0 +1,18 @@
+{
+  "device_id": "Yellow",
+  "timestamp": "1657453020000",
+  "color": "yellow",
+  "x": 1.0,
+  "y": 10.0,
+  "theta": 1.57,
+  "battery_level": 77.2,
+  "loaded": false,
+  "paused": true,
+  "path": [
+    {
+      "x": 19.0,
+      "y": 10.0,
+      "theta": 1.57
+    }
+  ]
+}
