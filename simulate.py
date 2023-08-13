@@ -200,7 +200,7 @@ def simulate(robots):
 
 if __name__ == "__main__":
     # Simple path collision:
-    bots = load_robots(dir="./data/json/scenario_2/")
+    # bots = load_robots(dir="./data/json/scenario_2/")
     # Task Example:
     bots = load_robots(dir="./data/json/scenario_1/")
     for robots, grid in simulate(bots):
