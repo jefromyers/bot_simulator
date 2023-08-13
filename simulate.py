@@ -186,6 +186,14 @@ def collisions(robots: List[Robot]) -> List[Tuple[Robot, Robot]]:
     return collisions_detected
 
 
+def path_distance(bot: Robot):
+    if bot.path:
+        start = (bot.x, bot.y)
+        end = (bot.path[0]["x"], bot.path[0]["y"])
+        return LineString([start, end]).length
+    return 0
+
+
 def simulate(robots):
     """Lights camera action!"""
     grid = Grid(robots, 20, 20)
@@ -206,11 +214,8 @@ if __name__ == "__main__":
                 f"Colliding robots detected: {', '.join(f'{bot1.device_id} & {bot2.device_id}' for bot1, bot2 in colliding_bots)}"
             )
             troblesome_bots = {bot for pair in colliding_bots for bot in pair}
-            # XXX: Lets let the shortest path win, though we should probably
-            #      just look at that path segment?
-            sorted_troblesome_bots = sorted(
-                list(troblesome_bots), key=lambda robot: len(robot.path)
-            )
+            # XXX: We can improve this for sure, but lets start like this
+            sorted_troblesome_bots = sorted(list(troblesome_bots), key=path_distance)
             for bot in sorted_troblesome_bots:
                 print(f"Resuming robot {bot.device_id}")
                 bot.paused = False
