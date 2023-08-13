@@ -1,9 +1,6 @@
 # 🤖 simulations
 
-<video width="600" controls>
-  <source src="https://jef.lol/botsim.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+https://github.com/jefromyers/bot_simulator/assets/7703829/31f7e644-8180-46ca-bdb3-7f1ff0bc0bfc
 
 This project is a down-and-dirty attempt at creating a simple framework for
 approaching an interview question from Jean-Marc. It includes simulations to
