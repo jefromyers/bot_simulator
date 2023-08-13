@@ -85,7 +85,7 @@ class Grid:
         self.width = width
         self.height = height
         self.grid = self.reset()
-        self.update()
+        self._update()
 
     def within_grid(self, x, y):
         return 0 <= x < self.width and 0 <= y < self.height
@@ -95,7 +95,7 @@ class Grid:
         #      lets just get something working instead of being too smart
         return [[None for _ in range(self.width)] for _ in range(self.height)]
 
-    def update(self):
+    def _update(self):
         self.grid = self.reset()
         for bot in self.robots:
             x, y = int(bot.x), int(bot.y)
@@ -110,6 +110,7 @@ class Grid:
             self.grid[y][x] = (bot.device_id[0].upper(), bot.color)
 
     def render(self, to_disk=True):
+        self._update()
         color_mapping = {
             "red": "\033[91m",
             "green": "\033[92m",
@@ -139,6 +140,10 @@ class Grid:
             for robot in self.robots
         )
 
+        grid_state = "\n".join(
+            [top_border] + rendered_grid + [bottom_border] + [robot_info]
+        )
+
         # XXX: To visually monitor the robots, writing the grid to disk and using a tool
         #      like `inotifywait` to watch the file proved to be a much simpler way to
         #      iterate than trying to get the render in the event loop right. Optionally,
@@ -146,15 +151,11 @@ class Grid:
         #      which is kind of nice.
         if to_disk:
             with open(f"./data/output/screen.txt", "w") as f:
-                f.write(
-                    "\n".join(
-                        [top_border] + rendered_grid + [bottom_border] + [robot_info]
-                    )
-                )
+                f.write(grid_state)
             return
 
         # If we wanna print it
-        return "\n".join([top_border] + rendered_grid + [bottom_border] + [robot_info])
+        return grid_state
 
 
 def will_collide(current_bot: Robot, other_bot: Robot) -> bool:
@@ -185,15 +186,19 @@ def collisions(robots: List[Robot]) -> List[Tuple[Robot, Robot]]:
     return collisions_detected
 
 
+def path_distance(bot: Robot):
+    if bot.path:
+        start = (bot.x, bot.y)
+        end = (bot.path[0]["x"], bot.path[0]["y"])
+        return LineString([start, end]).length
+    return 0
+
+
 def simulate(robots):
     """Lights camera action!"""
     grid = Grid(robots, 20, 20)
     while True:
         [robot.move() for robot in robots]
-        # XXX: This hints at order, maybe we should use a context manager? Or
-        #      at least a function that enforces the order, we'll worry about that
-        #      later
-        grid.update()
         grid.render()
         yield robots, grid
 
@@ -209,17 +214,13 @@ if __name__ == "__main__":
                 f"Colliding robots detected: {', '.join(f'{bot1.device_id} & {bot2.device_id}' for bot1, bot2 in colliding_bots)}"
             )
             troblesome_bots = {bot for pair in colliding_bots for bot in pair}
-            # XXX: Lets let the shortest path win, though we should probably
-            #      just look at that path segment?
-            sorted_troblesome_bots = sorted(
-                list(troblesome_bots), key=lambda robot: len(robot.path)
-            )
+            # XXX: We can improve this for sure, but lets start like this
+            sorted_troblesome_bots = sorted(list(troblesome_bots), key=path_distance)
             for bot in sorted_troblesome_bots:
                 print(f"Resuming robot {bot.device_id}")
                 bot.paused = False
                 while not bot.is_idle:
                     bot.move()
-                    grid.update()
                     grid.render()
                     time.sleep(0.2)
 
