@@ -1,16 +1,15 @@
 import time
-import random
 import logging
 
 from json import load
-from typing import Dict, List, Optional, Tuple
+from typing import List, Tuple
 from pathlib import Path
-from itertools import combinations, islice, tee
+from itertools import combinations
 
-import numpy as np
-
-from pydantic import BaseModel
 from shapely.geometry import LineString
+
+from grid.grid import Grid
+from bots.simple import Robot
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -23,132 +22,6 @@ def load_robots(dir="./data/json/"):
         for p in paths
         if p.is_file() and (robot := Robot.from_json(load(p.open())))
     ]
-
-
-class Robot(BaseModel):
-    device_id: str
-    timestamp: float  # XXX: Um... I think?
-    x: float
-    y: float
-    theta: float
-    battery_level: float
-    loaded: bool
-    path: List[Dict[str, float]]
-    paused: bool = False
-    color: Optional[str] = None  # Who doesn't want to see colors?
-
-    def __hash__(self):
-        return hash(self.device_id)
-
-    @classmethod
-    def from_json(cls, json):
-        return cls(**json)
-
-    @property
-    def is_idle(self):
-        return not self.path
-
-    def next_position(self) -> Tuple[int, int]:
-        next_x = self.x + np.sign(self.path[0]["x"] - self.x)
-        next_y = self.y + np.sign(self.path[0]["y"] - self.y)
-        return int(next_x), int(next_y)
-
-    def move(self):
-        if self.is_idle:
-            return
-        if self.paused:
-            logger.debug(f"Robot {self.device_id} is paused")
-            return
-
-        self.x, self.y = self.next_position() 
-
-        next_step = self.path[0]
-
-        # Are we done with the path?
-        if self.x == next_step["x"] and self.y == next_step["y"]:
-            self.path.pop(0)
-        self.timestamp = time.time()
-
-        # logger.debug(f"Robot {self.device_id} @ ({self.x}, {self.y})")
-
-class Grid:
-    def __init__(self, robots, width, height):
-        self.robots = robots
-        self.width = width
-        self.height = height
-        self.grid = self.reset()
-        self._update()
-
-    def within_grid(self, x, y):
-        return 0 <= x < self.width and 0 <= y < self.height
-
-    def reset(self):
-        # XXX: This should probably be a flat list instead of a 2D list but
-        #      lets just get something working instead of being too smart
-        return [[None for _ in range(self.width)] for _ in range(self.height)]
-
-    def _update(self):
-        self.grid = self.reset()
-        for bot in self.robots:
-            x, y = int(bot.x), int(bot.y)
-            if not self.within_grid(x, y):
-                logger.debug(
-                    f"Houston we have a problem {bot.device_id} is out of bounds!"
-                )
-                bot.paused = True
-                continue
-            # XXX: For simulation just don't name robots with the same first
-            #      letter and color
-            self.grid[y][x] = (bot.device_id[0].upper(), bot.color)
-
-    def render(self, to_disk=True):
-        self._update()
-        color_mapping = {
-            "red": "\033[91m",
-            "green": "\033[92m",
-            "yellow": "\033[93m",
-            "blue": "\033[94m",
-            "magenta": "\033[95m",
-            "cyan": "\033[96m",
-            "white": "\033[97m",
-            "reset": "\033[0m",
-        }
-
-        top_border = "-" * (2 * self.width + 1)
-        bottom_border = top_border
-        rendered_grid = [
-            "|"
-            + " ".join(
-                color_mapping.get(cell[1], "") + cell[0] + color_mapping["reset"]
-                if cell
-                else " "
-                for cell in row
-            )
-            + "|"
-            for row in self.grid
-        ]
-        robot_info = "\n".join(
-            f"{robot.device_id}: (x: {int(robot.x)}, y: {int(robot.y)})"
-            for robot in self.robots
-        )
-
-        grid_state = "\n".join(
-            [top_border] + rendered_grid + [bottom_border] + [robot_info]
-        )
-
-        # XXX: To visually monitor the robots, writing the grid to disk and using a tool
-        #      like `inotifywait` to watch the file proved to be a much simpler way to
-        #      iterate than trying to get the render in the event loop right. Optionally,
-        #      it allows us to save the simulation as a series of text files if we want,
-        #      which is kind of nice.
-        if to_disk:
-            with open(f"./data/output/screen.txt", "w") as f:
-                f.write(grid_state)
-            return
-
-        # If we wanna print it
-        return grid_state
-
 
 def will_collide(current_bot: Robot, other_bot: Robot) -> bool:
     """Look ahead to see if the current bot will collide with other bot"""
@@ -197,7 +70,6 @@ def can_resume(bot: Robot, all_bots: List[Robot]) -> bool:
             return False
             
     return True
-
 
 
 def simulate(robots):
