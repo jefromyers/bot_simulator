@@ -11,10 +11,6 @@ You can install the required packages by running:
 
 ``` pip install -r requirements.txt ```
 
-Create the necessary directories for the project:
-
-``` mkdir -p data/json data/output ```
-
 ### Running the Simulations
 
 If you'd like a visual representation of the simulations running, you can use
