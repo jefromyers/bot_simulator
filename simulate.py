@@ -48,28 +48,21 @@ class Robot(BaseModel):
     def is_idle(self):
         return not self.path
 
+    def next_position(self) -> Tuple[int, int]:
+        next_x = self.x + np.sign(self.path[0]["x"] - self.x)
+        next_y = self.y + np.sign(self.path[0]["y"] - self.y)
+        return int(next_x), int(next_y)
+
     def move(self):
         if self.is_idle:
-            # logger.debug(f"Quick find some work {self.device_id} is idle!")
             return
         if self.paused:
             logger.debug(f"Robot {self.device_id} is paused")
             return
 
+        self.x, self.y = self.next_position() 
+
         next_step = self.path[0]
-        dx = next_step["x"] - self.x
-        dy = next_step["y"] - self.y
-
-        # Figure out which direction to move in
-        move_x = np.sign(dx)
-        move_y = np.sign(dy)
-        self.x += move_x
-        self.y += move_y
-
-        # XXX: Round down to the nearest integer, not sure if this could cause
-        # problems, but float as coordinates is too much for my tiny brain.
-        self.x = int(self.x)
-        self.y = int(self.y)
 
         # Are we done with the path?
         if self.x == next_step["x"] and self.y == next_step["y"]:
@@ -77,7 +70,6 @@ class Robot(BaseModel):
         self.timestamp = time.time()
 
         # logger.debug(f"Robot {self.device_id} @ ({self.x}, {self.y})")
-
 
 class Grid:
     def __init__(self, robots, width, height):
@@ -193,6 +185,20 @@ def path_distance(bot: Robot):
         return LineString([start, end]).length
     return 0
 
+def can_resume(bot: Robot, all_bots: List[Robot]) -> bool:
+    next_x, next_y = bot.next_position()
+    
+    for other_bot in all_bots:
+        if other_bot == bot or other_bot.paused or other_bot.is_idle:
+            continue
+
+        # See if the next position of this bot collides with another moving bot
+        if other_bot.x == next_x and other_bot.y == next_y:
+            return False
+            
+    return True
+
+
 
 def simulate(robots):
     """Lights camera action!"""
@@ -213,15 +219,14 @@ if __name__ == "__main__":
             print(
                 f"Colliding robots detected: {', '.join(f'{bot1.device_id} & {bot2.device_id}' for bot1, bot2 in colliding_bots)}"
             )
-            troblesome_bots = {bot for pair in colliding_bots for bot in pair}
-            # XXX: We can improve this for sure, but lets start like this
-            sorted_troblesome_bots = sorted(list(troblesome_bots), key=path_distance)
-            for bot in sorted_troblesome_bots:
-                print(f"Resuming robot {bot.device_id}")
-                bot.paused = False
-                while not bot.is_idle:
-                    bot.move()
-                    grid.render()
-                    time.sleep(0.2)
+
+            for bot1, bot2 in colliding_bots:
+                bot1.paused = True
+                bot2.paused = True
+
+            for bot in bots:
+                if bot.paused and can_resume(bot, bots):
+                    logger.debug(f"Resuming robot {bot.device_id}")
+                    bot.paused = False
 
         time.sleep(0.2)
