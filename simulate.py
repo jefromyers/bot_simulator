@@ -4,6 +4,7 @@ import logging
 from json import load
 from typing import List, Tuple
 from pathlib import Path
+from argparse import ArgumentParser
 from itertools import combinations
 
 from shapely.geometry import LineString
@@ -22,6 +23,7 @@ def load_robots(dir="./data/json/"):
         for p in paths
         if p.is_file() and (robot := Robot.from_json(load(p.open())))
     ]
+
 
 def will_collide(current_bot: Robot, other_bot: Robot) -> bool:
     """Look ahead to see if the current bot will collide with other bot"""
@@ -58,9 +60,10 @@ def path_distance(bot: Robot):
         return LineString([start, end]).length
     return 0
 
+
 def can_resume(bot: Robot, all_bots: List[Robot]) -> bool:
     next_x, next_y = bot.next_position()
-    
+
     for other_bot in all_bots:
         if other_bot == bot or other_bot.paused or other_bot.is_idle:
             continue
@@ -68,21 +71,22 @@ def can_resume(bot: Robot, all_bots: List[Robot]) -> bool:
         # See if the next position of this bot collides with another moving bot
         if other_bot.x == next_x and other_bot.y == next_y:
             return False
-            
+
     return True
 
 
-def simulate(robots):
+def simulate(robots, *, output_fn=None):
     """Lights camera action!"""
-    grid = Grid(robots, 20, 20)
+    grid = Grid(robots, 20, 20, output_fn=output_fn)
     while True:
         [robot.move() for robot in robots]
         grid.render()
         yield robots, grid
 
+
 # Collision Strategies
 def just_in_time(bots, colliding_bots):
-    """ Tries to agressively move if there is no imminent collision"""
+    """Tries to agressively move if there is no imminent collision"""
     print(
         f"Colliding robots detected: {', '.join(f'{bot1.device_id} & {bot2.device_id}' for bot1, bot2 in colliding_bots)}"
     )
@@ -96,8 +100,9 @@ def just_in_time(bots, colliding_bots):
             logger.debug(f"Resuming robot {bot.device_id}")
             bot.paused = False
 
+
 def nice_and_cautious(bots, colliding_bots):
-    """ Moves one at a time nice and easy """
+    """Moves one at a time nice and easy"""
     print(
         f"Colliding robots detected: {', '.join(f'{bot1.device_id} & {bot2.device_id}' for bot1, bot2 in colliding_bots)}"
     )
@@ -115,11 +120,20 @@ def nice_and_cautious(bots, colliding_bots):
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser(description="Robot simulation")
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=f"./data/output/screen.txt",
+        help="The file you would like the Grid output to be written too",
+    )
+    args = parser.parse_args()
+
     # Simple path collision:
     # bots = load_robots(dir="./data/json/scenario_2/")
     # Task Example:
     bots = load_robots(dir="./data/json/scenario_1/")
-    for robots, grid in simulate(bots):
+    for robots, grid in simulate(bots, output_fn=args.output):
         if colliding_bots := collisions(robots):
             # Different Strategies...
             # just_in_time(robots, colliding_bots)

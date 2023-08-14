@@ -7,11 +7,12 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class Grid:
-    def __init__(self, robots, width, height):
+    def __init__(self, robots, width, height, *, output_fn):
         self.robots = robots
         self.width = width
         self.height = height
         self.grid = self.reset()
+        self.output_fn = output_fn
         self._update()
 
     def within_grid(self, x, y):
@@ -36,8 +37,7 @@ class Grid:
             #      letter and color
             self.grid[y][x] = (bot.device_id[0].upper(), bot.color)
     
-    # TODO: Must change the watcher scripts to allow a different path
-    def render(self, fn=f"./data/output/screen.txt"):
+    def render(self):
         self._update()
         color_mapping = {
             "red": "\033[91m",
@@ -77,8 +77,8 @@ class Grid:
         #      iterate than trying to get the render in the event loop right. Optionally,
         #      it allows us to save the simulation as a series of text files if we want,
         #      which is kind of nice.
-        if fn:
-            with open(fn, "w") as f:
+        if self.output_fn:
+            with open(self.output_fn, "w") as f:
                 f.write(grid_state)
 
         return grid_state

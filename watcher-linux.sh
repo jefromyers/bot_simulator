@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# XXX: Just hard code for now
 FILE_PATH="./data/output/screen.txt"
+
+# Allow a different file
+if [ -n "$1" ]; then
+  FILE_PATH="$1"
+fi
 
 meow() {
   clear
