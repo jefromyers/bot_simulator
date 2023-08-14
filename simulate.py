@@ -80,6 +80,39 @@ def simulate(robots):
         grid.render()
         yield robots, grid
 
+# Collision Strategies
+def just_in_time(bots, colliding_bots):
+    """ Tries to agressively move if there is no imminent collision"""
+    print(
+        f"Colliding robots detected: {', '.join(f'{bot1.device_id} & {bot2.device_id}' for bot1, bot2 in colliding_bots)}"
+    )
+
+    for bot1, bot2 in colliding_bots:
+        bot1.paused = True
+        bot2.paused = True
+
+    for bot in bots:
+        if bot.paused and can_resume(bot, bots):
+            logger.debug(f"Resuming robot {bot.device_id}")
+            bot.paused = False
+
+def nice_and_cautious(bots, colliding_bots):
+    """ Moves one at a time nice and easy """
+    print(
+        f"Colliding robots detected: {', '.join(f'{bot1.device_id} & {bot2.device_id}' for bot1, bot2 in colliding_bots)}"
+    )
+    troblesome_bots = {bot for pair in colliding_bots for bot in pair}
+    sorted_troblesome_bots = sorted(
+        list(troblesome_bots), key=lambda robot: len(robot.path)
+    )
+    for bot in sorted_troblesome_bots:
+        print(f"Resuming robot {bot.device_id}")
+        bot.paused = False
+        while not bot.is_idle:
+            bot.move()
+            grid.render()
+            time.sleep(0.2)
+
 
 if __name__ == "__main__":
     # Simple path collision:
@@ -88,17 +121,8 @@ if __name__ == "__main__":
     bots = load_robots(dir="./data/json/scenario_1/")
     for robots, grid in simulate(bots):
         if colliding_bots := collisions(robots):
-            print(
-                f"Colliding robots detected: {', '.join(f'{bot1.device_id} & {bot2.device_id}' for bot1, bot2 in colliding_bots)}"
-            )
-
-            for bot1, bot2 in colliding_bots:
-                bot1.paused = True
-                bot2.paused = True
-
-            for bot in bots:
-                if bot.paused and can_resume(bot, bots):
-                    logger.debug(f"Resuming robot {bot.device_id}")
-                    bot.paused = False
+            # Different Strategies...
+            # just_in_time(robots, colliding_bots)
+            nice_and_cautious(robots, colliding_bots)
 
         time.sleep(0.2)
