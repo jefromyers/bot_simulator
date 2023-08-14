@@ -2,6 +2,8 @@ import time
 import logging
 
 from json import load
+from random import choice, randint, seed, randint
+from string import ascii_lowercase
 from typing import List, Tuple
 from pathlib import Path
 from argparse import ArgumentParser
@@ -15,6 +17,7 @@ from bots.simple import Robot
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+seed(0)
 
 def load_robots(dir="./data/json/"):
     paths = Path(dir).glob("*.json")
@@ -23,6 +26,38 @@ def load_robots(dir="./data/json/"):
         for p in paths
         if p.is_file() and (robot := Robot.from_json(load(p.open())))
     ]
+
+
+def genorate_random_robots(width: int, height: int, num_paths: int) -> Robot:
+    colors = ["red", "green", "yellow", "blue", "magenta", "cyan", "white"]
+    color = choice(colors)
+    device_id = choice(ascii_lowercase)
+    x = randint(0, width - 1)
+    y = randint(0, height - 1)
+    theta = 1.57  # Not sure if this is refering to angle.
+    battery_level = randint(10, 100)
+    loaded = choice([True, False])
+    path = [
+        {
+            "x": randint(0, width - 1),
+            "y": randint(0, height - 1),
+            "theta": theta,
+        }
+        for _ in range(num_paths)
+    ]
+
+    robot = Robot(
+        device_id=device_id,
+        timestamp=time.time(),
+        color=color,
+        x=x,
+        y=y,
+        theta=theta,
+        battery_level=battery_level,
+        loaded=loaded,
+        path=path,
+    )
+    return robot
 
 
 def will_collide(current_bot: Robot, other_bot: Robot) -> bool:
@@ -128,15 +163,29 @@ if __name__ == "__main__":
         help="The file you would like the Grid output to be written too",
     )
     args = parser.parse_args()
-
+    
+    # ROBOTS FROM DISK
     # Simple path collision:
     # bots = load_robots(dir="./data/json/scenario_2/")
     # Task Example:
-    bots = load_robots(dir="./data/json/scenario_1/")
+    # bots = load_robots(dir="./data/json/scenario_1/")
+
+    # RANDOM ROBOTS
+    # Kind of silly but at the superficial level so whatever
+    max_random = 5
+    bots = []
+    starting_positions = {*''}
+    while len(bots) < max_random:
+        bot = genorate_random_robots(20, 20, 3)
+        key = (bot.x, bot.y)
+        if key not in starting_positions:
+            bots.append(bot)
+            starting_positions.add(key)
+
     for robots, grid in simulate(bots, output_fn=args.output):
         if colliding_bots := collisions(robots):
             # Different Strategies...
-            # just_in_time(robots, colliding_bots)
-            nice_and_cautious(robots, colliding_bots)
+            just_in_time(robots, colliding_bots)
+            # nice_and_cautious(robots, colliding_bots)
 
         time.sleep(0.2)
